@@ -10,16 +10,12 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: android-build-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     name: Build debug APK
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -39,35 +35,24 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract project archive
-        shell: bash
+      - name: Check project files
         run: |
-          set -euo pipefail
-          test -s ControlCenterNonRoot-Android12-Fixed.zip
-          mkdir -p "$RUNNER_TEMP/project"
-          unzip -q ControlCenterNonRoot-Android12-Fixed.zip -d "$RUNNER_TEMP/project"
-          settings_file="$(find "$RUNNER_TEMP/project" -type f -name settings.gradle -print -quit)"
-          test -n "$settings_file"
-          echo "PROJECT_DIR=$(dirname "$settings_file")" >> "$GITHUB_ENV"
-
-      - name: Validate project files
-        run: |
-          test -f "$PROJECT_DIR/settings.gradle"
-          test -f "$PROJECT_DIR/build.gradle"
-          test -f "$PROJECT_DIR/app/build.gradle"
-          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          test -f settings.gradle
+          test -f build.gradle
+          test -f app/build.gradle
+          test -f app/src/main/AndroidManifest.xml
+          gradle --version
 
       - name: Build debug APK
-        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Verify APK
-        run: test -s "${PROJECT_DIR}/app/build/outputs/apk/debug/app-debug.apk"
+      - name: Verify APK exists
+        run: test -s app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ControlCenter-Android12-debug-apk
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
